@@ -99,30 +99,48 @@ class generallog_parser extends parser
             echo "\nignoring: $row";
             return;
         }
+                 
         $aM = array();
         if (preg_match("~(\d++)\s+(Query|Init DB)\s++([^$]+)~", $row, $aM)) {
             if (!empty($this->composite_query[$aM[1]])) {
                 $this->queries[$aM[1]][] = implode(" ", $this->composite_query[$aM[1]]);
                 $this->composite_query[$aM[1]] = array();
             }
-            $tmp_q = $aM[3];
+            $tmp_q = $this->cleanQuery($aM[3]);            
             if (preg_match("~Init db~i", $aM[2])) {
                 $tmp_q = $aM[2] . ": " . $aM[3];
             }
             $this->composite_query[$aM[1]][] = $tmp_q;
             $this->last_thread_id = $aM[1];
-        } elseif (preg_match("~^(\d++)\s+Quit[^$]*~", $row, $aM)) {
+        } elseif (preg_match("~(\d++)\s+Quit[^$]*~", $row, $aM)) {
             if (isset($this->composite_query[$aM[1]]) and !empty($this->composite_query[$aM[1]])) {
                 $this->queries[$aM[1]][] = implode(" ", $this->composite_query[$aM[1]]);
                 $this->queries[$aM[1]][] = 'Quit';
                 unset($this->composite_query[$aM[1]]);
             }
             $this->last_thread_id = null;
-        } elseif (preg_match("~^(\d++)\s+Connect\s++([^$]+)~", $row, $aM)) {
+        } elseif (preg_match("~(\d++)\s+Connect\s++([^$]+)~", $row, $aM)) {
             return;
-        } else {
-            $this->composite_query[$this->last_thread_id][] = $row;
+        } else {            
+            if (isset($this->last_thread_id) && !is_null($this->last_thread_id) && $this->last_thread_id !== '') 
+            {
+                $this->composite_query[$this->last_thread_id][] = $row;
+            }
         }
+    }
+    /**
+     * For removing strings like
+     * 998774 Query        SELECT id,name FROM api_content_provider 151120  6:17:02 382578 Quit
+     * @param string $query
+     * @return correct mysql query
+     */
+    protected function cleanQuery($query)
+    {
+        return preg_replace(
+            array('~\s+\d++\s+\d{1,2}:\d{2}:\d{2}\s+\d++\s+Quit~'),
+            array(''),
+            $query
+        );
     }
 
     public function getQueries()

@@ -58,24 +58,24 @@ $conn->close();
 $parser = parser::init($config);
 
 $fp = getSource($config);
+do {
+    while ($row = fgets($fp, 4096)) {
+        $parser->readLine($row);
+        $thread_queries = $parser->getQueries();
 
-while ($row = fgets($fp, 4096)) {
-    //echo "\nrow$row";
-    $parser->readLine($row);
-    $thread_queries = $parser->getQueries();
-    if (!empty($thread_queries)) {
-        foreach ($thread_queries as $thread_id => $queries) {
-            $conn = mysql_pool::getConnByThread($thread_id);
-
-            foreach ($queries as $query) {                
-                $method = $query->handle_method;
-                if (method_exists($conn, $query->handle_method)) {
-                    $conn->$method($query->sql);
-                } else if (method_exists($query, $query->handle_method)) {
-                    $query->$method($conn, $query->sql, $thread_id);
+        if (!empty($thread_queries)) {
+            foreach ($thread_queries as $thread_id => $queries) {
+                $conn = mysql_pool::getConnByThread($thread_id);
+    
+                foreach ($queries as $query) {                
+                    $method = $query->handle_method;
+                    if (method_exists($conn, $query->handle_method)) {
+                        $conn->$method($query->sql);
+                    } else if (method_exists($query, $query->handle_method)) {
+                        $query->$method($conn, $query->sql, $thread_id);
+                    }
                 }
             }
         }
     }
-}
-
+} while(is_null($config->source));
