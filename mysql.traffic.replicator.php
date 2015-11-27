@@ -78,4 +78,4 @@ do {
             }
         }
     }
-} while(is_null($config->source));
+} while(true);
